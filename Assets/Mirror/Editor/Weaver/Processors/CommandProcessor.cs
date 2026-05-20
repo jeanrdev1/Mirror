@@ -91,10 +91,11 @@ namespace Mirror.Weaver
                 ParameterDefinition param = md.Parameters[i];
                 if (NetworkBehaviourProcessor.IsSenderConnection(param, RemoteCallType.Command))
                 {
-                    // load 'this.'
-                    worker.Emit(OpCodes.Ldarg_0);
-                    // call get_connectionToClient
-                    worker.Emit(OpCodes.Call, weaverTypes.NetworkBehaviourConnectionToClientReference);
+                    // Server-owned object => no owner connection (connectionToClient is null).
+                    // Host calling [Command] should use NetworkServer.localConnection as sender.
+                    // Load NetworkServer.localConnection
+                    // Fixes: https://github.com/MirrorNetworking/Mirror/issues/4070
+                    worker.Emit(OpCodes.Call, weaverTypes.NetworkServerLocalConnectionReference);
                 }
                 else
                 {
@@ -127,7 +128,7 @@ namespace Mirror.Weaver
             // otherwise each GetStableHash call requires O(N) complexity.
             // noticeable for long function names:
             // https://github.com/MirrorNetworking/Mirror/issues/3375
-            worker.Emit(OpCodes.Ldc_I4, md.FullName.GetStableHashCode());
+            worker.Emit(OpCodes.Ldc_I4, md.FullName.GetStableHashCode16());
             // writer
             worker.Emit(OpCodes.Ldloc_0);
             worker.Emit(OpCodes.Ldc_I4, channel);
